@@ -1,0 +1,86 @@
+---
+- hosts: all
+  become: true
+  tasks:
+    - name: update apt cache
+      apt:
+        update_cache: yes
+      changed_when: false
+    - name: set timezone
+      community.general.timezone:
+        name: Europe/Kyiv
+
+- hosts: server
+  become: true
+  tasks:
+    - name: install dependencies
+      apt:
+        name: 
+        - curl
+        - openssh-server
+        - ca-certificates
+        - tzdata
+        - perl
+        state: present
+
+    - name: Check if gitlab repo is installed
+      stat: 
+        path: /etc/apt/sources.list.d/gitlab_gitlab-ce.list
+      register: gitlab_repo_installed
+
+    - name: download gitlab package repo script
+      get_url: 
+        url: https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.deb.sh
+        dest: /tmp/script.deb.sh
+        mode: 0755
+      when: gitlab_repo_installed.stat.exists == false
+
+    - name: install gitlab package repo
+      shell: /tmp/script.deb.sh
+      when: gitlab_repo_installed.stat.exists == false
+
+    - name: install gitlab
+      environment:
+        EXTERNAL_URL: http://my-gitlab.com
+      apt:
+        name: gitlab-ce=16.11.6-ce.0
+        state: present
+
+- hosts: runner
+  become: true
+  tasks:
+
+    - name: Set global environment variables
+      lineinfile:
+        path: /etc/environment
+        regexp: "^CI_SERVER_URL="
+        line: "CI_SERVER_URL={{ CI_SERVER_URL }}"
+        create: yes
+
+    - name: Change hosts file (only for testing purpose, otherwise DNS is used)
+      tags: local
+      lineinfile:
+        path: /etc/hosts
+        regexp: "^{{ CI_SERVER_URL }}"
+        line: "{{ CI_SERVER_URL}} 192.168.56.10" 
+
+    - name: Check if gitlab runner package is added
+      stat:
+        path: /etc/apt/sources.list.d/runner_gitlab-runner.list
+      register: runner_repo_installed
+
+    - name: download gitlab runner package repo script
+      get_url:
+        url: https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh
+        dest: /tmp/script.deb.sh
+        mode: 0755
+      when: runner_repo_installed.stat.exists == false
+
+    - name: install gitlab runner package repo
+      shell: /tmp/script.deb.sh
+      when: runner_repo_installed.stat.exists == false
+
+    - name: install gitlab runner
+      apt:
+        name: gitlab-runner=16.11.2-1
+        state: present
