@@ -46,9 +46,24 @@
         name: gitlab-ce=16.11.6-ce.0
         state: present
 
+    - name: Upload gitlab.rb 
+      copy:
+        src: files/gitlab.rb
+        dest: /etc/gitlab/gitlab.rb
+        force: yes
+
+    - name: Reconfigure gitlab-ctl
+      shell: gitlab-ctl reconfigure
+
 - hosts: runner
   become: true
   tasks:
+    - name: Change hosts file (only for testing purpose, otherwise DNS is used)
+      tags: local
+      lineinfile:
+        path: /etc/hosts
+        regexp: "^{{ CI_SERVER_URL }}"
+        line: "{{ CI_SERVER_URL}} 192.168.56.10" 
 
     - name: Set global environment variables
       lineinfile:
@@ -57,12 +72,6 @@
         line: "CI_SERVER_URL={{ CI_SERVER_URL }}"
         create: yes
 
-    - name: Change hosts file (only for testing purpose, otherwise DNS is used)
-      tags: local
-      lineinfile:
-        path: /etc/hosts
-        regexp: "^{{ CI_SERVER_URL }}"
-        line: "{{ CI_SERVER_URL}} 192.168.56.10" 
 
     - name: Check if gitlab runner package is added
       stat:
