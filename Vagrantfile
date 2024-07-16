@@ -15,8 +15,8 @@ Vagrant.configure("2") do |config|
     runner_config.vm.host_name = "gitlab-runner"
     runner_config.vm.network "private_network", ip: "192.168.56.26"
     runner_config.vm.provider :virtualbox do |vb|
-        vb.memory=2048
-        vb.cpus=2
+        vb.memory=4096
+        vb.cpus=4
     end
   end      
 end
