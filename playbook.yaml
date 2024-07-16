@@ -51,13 +51,27 @@
         src: files/gitlab.rb
         dest: /etc/gitlab/gitlab.rb
         force: yes
+      register: gitlab_config
 
     - name: Reconfigure gitlab-ctl
       shell: gitlab-ctl reconfigure
+      when: gitlab_config.changed == true
 
 - hosts: runner
   become: true
+  vars:
+    android_sdk_root: "/usr/local/android/sdk"
+    sdkmanager_bin: "{{ android_sdk_root }}/cmdline-tools/latest/bin/sdkmanager"
   tasks:
+
+    - name: Install dependencies
+      tags: android
+      apt:
+        name: 
+          - unzip
+          - openjdk-17-jdk-headless
+
+
     - name: Change hosts file (only for testing purpose, otherwise DNS is used)
       tags: local
       lineinfile:
@@ -93,3 +107,33 @@
       apt:
         name: gitlab-runner=16.11.2-1
         state: present
+
+    - name: Set Android SDK Root env var
+      lineinfile:
+        path: /etc/environment
+        regex: "^ANDROID_SDK_ROOT"
+        line: "ANDROID_SDK_ROOT={{ android_sdk_root }}"
+
+    - name: Create Android SDK dir structure
+      file:
+        path: "{{ item.path }}"
+        state: "{{ item.state }}"
+        mode: "{{ item.mode }}"
+      with_items:
+        - { path: "{{ android_sdk_root }}", state: "directory", mode: "0755" }
+        - { path: "{{ android_sdk_root }}/cmdline-tools", state: "directory", mode: "0755" }
+
+    - name: Download Android cmd tools
+      unarchive:
+        src: https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        dest: "{{ android_sdk_root }}/cmdline-tools/"
+        creates: "{{ android_sdk_root }}/cmdline-tools/latest"
+        remote_src: yes
+      register: android_cmdtools
+
+    - name: Rename cmdline-tools dir
+      shell: mv "{{ android_sdk_root }}/cmdline-tools/cmdline-tools" "{{ android_sdk_root }}/cmdline-tools/latest"
+      when: android_cmdtools.changed == true
+
+    - name: Install android dependencies
+      script: files/install_android.sh
