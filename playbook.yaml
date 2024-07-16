@@ -38,12 +38,12 @@
       when: gitlab_repo_installed.stat.exists == false
 
     - name: install gitlab package repo
-      shell: /tmp/script.deb.sh
+      command: /tmp/script.deb.sh
       when: gitlab_repo_installed.stat.exists == false
 
     - name: install gitlab
       environment:
-        EXTERNAL_URL: http://my-gitlab.com
+        EXTERNAL_URL: "{{ CI_SERVER_URL }}"
       apt:
         name: gitlab-ce=16.11.6-ce.0
         state: present
