@@ -53,11 +53,11 @@
         src: files/gitlab.rb
         dest: /etc/gitlab/gitlab.rb
         force: yes
-      register: gitlab_config
+      notify: gitlab_ctl_reconfigure
 
-    - name: Reconfigure gitlab-ctl
+  handlers:
+    - name: gitlab_ctl_reconfigure
       shell: gitlab-ctl reconfigure
-      when: gitlab_config.changed == true
 
 - hosts: runner
   become: true
